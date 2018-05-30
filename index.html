@@ -1,0 +1,168 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <title>获取图片</title>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8">
+    <style>
+        #validSize {
+            color: green;
+        }
+    </style>
+    <script>
+        var $g = document.getElementById.bind(document);
+        var imgList, sizeInfo = [];
+
+        window.onload = function () {
+            send("getList", null, function (isError, data) {
+                if (isError) {
+                    alert("发生错误，无法连接服务器，请稍后刷新重试")
+                } else {
+                    imgList = data;
+                    imgList.forEach(function (img) {
+                        img.aspectRatio = getAspectRatio(img);
+                        img.area = getArea(img);
+                    });
+                }
+            });
+        }
+
+        function download() {
+            //检查选中
+            if (!sizeKeys || !sizeKeys.length) {
+                $g("btnDownload").style.display = "none";
+                return;
+            }
+            var lists = sizeKeys.map(function (item) {
+                item = item.concat();
+                item[0] = document.querySelector("input[name=" + item[0] + "]:checked").value;
+                return item;
+            })
+            window.open("/download?" + encodeURIComponent(JSON.stringify(lists)));
+        }
+
+
+        function doSearch() {
+            if (sizes.length) {
+                send("search", sizes.join("|"));
+            }
+        }
+
+        function send(api, query, callback) {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState == 4) {// 4 = "loaded"
+                    let ioError = (xhr.status >= 400 || xhr.status == 0);
+                    setTimeout(function () {
+                        callback && callback(ioError, xhr.response);
+                    }, 0)
+                }
+            }
+            xhr.responseType = "json";
+            xhr.open("GET", "/" + api + "?" + query);
+            xhr.send();
+        }
+
+        function checkSize() {
+            if (!imgList || !imgList.length) {
+                return;
+            }
+            var strSize = $g("txtSize").value;
+            var validSize = $g("validSize");
+            //进行1级分隔
+            var lines = strSize.split(/\r?\n/);
+            var k = 0;
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                line = line.trim();
+                var lastSize = sizeInfo[k];
+                if (lastSize && lastSize.raw == line) {
+                    k++;
+                    continue;
+                }
+                var result = /(\d+)[*×xX](\d+)(\.(jpg|png))?/.exec(line);
+                if (result != null) {
+                    var width = +result[1];
+                    var height = +result[2];
+                    var ext = result[4];
+                    if (width > 0 && height > 0) {
+                        sizeInfo[k++] = { width: width, height: height, ext: ext, raw: line };
+                    }
+                }
+            }
+            if (k) {
+                //搜索图片列表
+                var allowRepeat = $g("chkRepeat").value;
+                var threshold = $g("rngAspectRatio").value / 100;
+                var areaThreshold = $g("rngArea").value / 100;
+                var imgs = imgList.concat();
+                var result = $g("result");
+                var html = "";
+                sizeKeys = [];
+                for (var j = 0; j < k; j++) {
+                    var size = sizeInfo[j];
+                    var sizeAR = getAspectRatio(size);
+                    var sizeArea = getArea(size);
+                    var candidates = [];
+                    var width = size.width;
+                    var height = size.height;
+                    html += width + "×" + height + ":";
+                    var item = "";
+                    var key = "size_" + j;
+                    var a = 0, b = 0;
+                    sizeKeys.push([key, width, height, size.ext]);
+                    for (var z = 0; z < imgs.length; z++) {
+                        var img = imgs[z];
+                        var imgAR = img.aspectRatio;
+                        var imgArea = img.area;
+                        var variance = Math.pow(imgAR - sizeAR, 2);
+                        var find;
+                        if (variance < threshold) {
+                            var areaVariance = Math.pow(sizeArea / imgArea - 1, 2);
+                            if (areaVariance < areaThreshold) {
+                                var uri = img.uri;
+                                item += "<label><input type='radio' name='" + key + "' " + (b++ == 0 ? "checked" : "") + " value='" + uri + "' /><img width='" + width + "' height='" + height + "' src='img?" + uri + "' /></label> ";
+                                find = true;
+                            }
+                        }
+                        if (!find || allowRepeat) {
+                            imgs[a++] = img;
+                        }
+                    }
+                    imgs.length = a;
+                    if (item) {
+                        html += "<br/>" + item;
+                    } else {
+                        html += "<font color='#f00'>没有找到任何合适的图片</font>";
+                    }
+                    html += "<hr/>";
+                }
+                result.innerHTML = html;
+                $g("btnDownload").style.display = sizeKeys.length ? "block" : "none";
+            }
+        }
+        function getAspectRatio(size) {
+            return size.width / size.height;
+        }
+        function getArea(size) {
+            return size.width * size.height;
+        }
+    </script>
+</head>
+
+<body>
+
+    <input id="chkRepeat" type="checkbox" onchange="checkSize()" /> 是否允许同一张图片多次使用
+    <br/> 长宽比阈值：
+    <input id="rngAspectRatio" type="range" min="0" max="10" step="0.01" value="0.25" onchange="checkSize()" />
+    <br/> 面积差阈值：
+    <input id="rngArea" type="range" min="0" max="50" step="0.1" value="4" onchange="checkSize()" />
+    <br/> 填写尺寸:
+    <br/>
+    <textarea id="txtSize" cols="50" rows="20" onkeyup="checkSize()"></textarea>
+    <br/>
+    <div id="result"></div>
+    <input id="btnDownload" type="button" value="下载资源" onclick="download()" style="display: none" />
+</body>
+
+</html>
