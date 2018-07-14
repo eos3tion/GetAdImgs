@@ -4,7 +4,6 @@ import Koa from "koa";
 import * as path from "path";
 import * as fs from "fs";
 import archiver from "archiver";
-import { PassThrough } from "stream";
 
 interface Size {
     /**
@@ -177,7 +176,7 @@ handlers.search = async ctx => {
     //根据指定参数，搜索图片
     let sizeStr = decodeURIComponent(ctx.querystring);
     let arr = sizeStr.split("|") as string[];
-    let sizes = arr.map<SizeInfo>((item, idx) => {
+    let sizes = arr.map<SizeInfo>((item) => {
         let subArr = item.split("×");
         //检查尺寸
         let [width, height] = subArr;
