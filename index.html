@@ -33,9 +33,14 @@
                 $g("btnDownload").style.display = "none";
                 return;
             }
-            var lists = sizeKeys.map(function (item) {
-                item = item.concat();
-                item[0] = document.querySelector("input[name=" + item[0] + "]:checked").value;
+			var lists = [];
+            sizeKeys.forEach(function (item) {                
+				var nodes = document.querySelectorAll("input[name=" + item[0] + "]:checked");
+				nodes.forEach(function(input){
+					var tmp = item.concat();
+					tmp[0]=input.value;
+					lists.push(tmp);
+				});
                 return item;
             })
             window.open("/download?" + encodeURIComponent(JSON.stringify(lists)));
@@ -121,7 +126,7 @@
                             var areaVariance = Math.pow(sizeArea / imgArea - 1, 2);
                             if (areaVariance < areaThreshold) {
                                 var uri = img.uri;
-                                item += "<label><input type='radio' name='" + key + "' " + (b++ == 0 ? "checked" : "") + " value='" + uri + "' /><img width='" + width + "' height='" + height + "' src='img?" + uri + "' /></label> ";
+                                item += "<label><img width='" + width + "' height='" + height + "' src='img?" + uri + "' /><input type='checkbox' name='" + key + "' " + (b++ == 0 ? "checked" : "") + " value='" + uri + "' /></label>&nbsp;&nbsp;&nbsp;&nbsp;";
                                 find = true;
                             }
                         }
